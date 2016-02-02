@@ -1,8 +1,8 @@
 {
   "name": "hubot-tfs-teamrooms",
   "version": "1.0.0",
-  "description": "",
-  "main": "dest/index.js",
+  "description": "Hubot adapter for VSO / TFS Team Rooms.",
+  "main": "dest/adapter.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

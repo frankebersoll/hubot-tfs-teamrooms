@@ -1,6 +1,5 @@
-{Robot,Adapter,TextMessage,EnterMessage,User} = require.main.require './hubot/index'
-{TfsApi} = require './tfsApi'
-Path = require "path"
+{Robot,Adapter,TextMessage,EnterMessage,User} = require.main.require 'hubot'
+{TfsApi} = require "./tfsApi"
 
 class TfsTeamroomsAdapter extends Adapter
 
@@ -32,9 +31,3 @@ class TfsTeamroomsAdapter extends Adapter
 
 exports.use = (robot) ->
   new TfsTeamroomsAdapter robot
-
-
-robot = new Robot null, "tfs-teamrooms"
-robot.load Path.resolve ".", "scripts"
-
-robot.run()
