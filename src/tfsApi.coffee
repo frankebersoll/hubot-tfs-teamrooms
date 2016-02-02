@@ -1,61 +1,70 @@
-signalr = require "signalr-client"
+{EventEmitter}  = require "events"
+signalr         = require "signalr-client"
 
 baseUrl = "https://vs4tc4tebrtzd56zwavr.visualstudio.com"
-apiKey = "2aklpr3q6i2ycnezjopwv3yrrsivm6uh63ovyfndvvjzi4v3p35q"
+apiKey = "smjbpk5x2xca5fntish7gbfrs24eocue3rawaxcmgny2s6s2m6vq"
 collectionName = "defaultcollection"
 roomName = "Woah"
-ChatHub = "chathub"
 
-class TfsApi
+class TfsApi extends EventEmitter
 
-  constructor: (http) ->
+  CHAT_HUB = "chathub"
+
+  constructor: (@robot) ->
     @collectionId = null
     @chatRoomId = null
 
-    @http = http(baseUrl)
+    @http = @robot.http(baseUrl)
     @http.auth apiKey
     @signalr = new signalr.client baseUrl.replace(/^https/, "wss") + "/signalr",
-      [ ChatHub ],  # Hubs
+      [ CHAT_HUB ],  # Hubs
       10,             # Reconnect timeout seconds
       true            # Disable autostart
 
+
   connect: ->
-    promises = [
+    Promise.all [
       @getCollectionId() .then (id) => @collectionId = id
       @getChatRoomId() .then (id) => @chatRoomId = id
     ]
-
-    Promise.all promises
       .then () => @connectSignalr()
-      .then () => @joinRoom()
-      .catch (error) ->
-        console.log error
+      .then () => @emit "connected"
+      .catch (error) => @emit "error", error
+
 
   connectSignalr: ->
-    console.log "Connecting..."
-
-    @signalr.queryString.contextToken = @collectionId
-    @signalr.headers["Authorization"] =
-      "Basic " + new Buffer "#{ apiKey }:"
-        .toString "base64"
-
-    @signalr.handlers[ChatHub] =
-      messagereceived: @onMessageReceived.bind(@)
-
-    handlers = @signalr.serviceHandlers
-
     new Promise (resolve, reject) =>
-      handlers.connected = resolve
-      handlers.onUnauthorized = reject
-      handlers.bindingError = reject
+      @robot.logger.info "Connecting to SignalR endpoint..."
+
+      @signalr.queryString.contextToken = @collectionId
+      @signalr.headers["Authorization"] = "Basic " + new Buffer("#{ apiKey }:").toString "base64"
+
+      @signalr.handlers[CHAT_HUB] =
+        messagereceived: (room, message) => @emit "message", message
+
+      @signalr.serviceHandlers =
+        connected: resolve
+        onUnauthorized: reject
+
       @signalr.start()
 
-  onMessageReceived: (room, message) ->
-    @signalr.invoke ChatHub, "SendMessage", @chatRoomId, message.content + " OK!"
 
   joinRoom: ->
-    @signalr.invoke ChatHub, "JoinRoom", @chatRoomId
-    console.log "Joined room #{ 'roomName' }."
+    @signalr.invoke CHAT_HUB, "JoinRoom", @chatRoomId
+    console.log "Joined room '#{ roomName }'."
+
+    # @http.scope "defaultcollection/_apis/chat/rooms/#{ @chatRoomId }/users/b02b5dd1-78ee-4758-be55-4acf89bc1c07", (client) =>
+    #   user =
+    #     usedId: "b02b5dd1-78ee-4758-be55-4acf89bc1c07"
+    #   client.query({"api-version": "1.0"})
+    #     .header("accept", "application/json")
+    #     .header("content-type", "application/json")
+    #     .put(JSON.stringify user) (err, res, body) =>
+    #       console.log(body)
+
+  sendMessage: (message) ->
+    @signalr.invoke CHAT_HUB, "SendMessage", @chatRoomId, message
+    console.log "Sent message '#{ message }'."
 
   getCollectionId: ->
     @getResource "_apis/projectcollections/#{collectionName}/?api-version=1.0"

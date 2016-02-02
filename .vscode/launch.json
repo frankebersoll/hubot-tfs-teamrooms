@@ -16,7 +16,8 @@
         "coffee-script/register"
 			],
 			"env": {
-				"NODE_ENV": "development"
+				"NODE_ENV": "development",
+        "HUBOT_LOG_LEVEL": "debug"
 			},
 			"externalConsole": false,
 			"sourceMaps": true,

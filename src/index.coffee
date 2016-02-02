@@ -1,33 +1,40 @@
-{Robot,Adapter,TextMessage,User} = require.main.require './hubot/index'
+{Robot,Adapter,TextMessage,EnterMessage,User} = require.main.require './hubot/index'
 {TfsApi} = require './tfsApi'
+Path = require "path"
 
 class TfsTeamroomsAdapter extends Adapter
 
-  constructor: ->
-    super
-    @api = new TfsApi (@robot.http.bind(@robot))
-
   send: (envelope, strings...) ->
-    @robot.logger.info "Send"
-
-  reply: (envelope, strings...) ->
-    @robot.logger.info "Reply"
+    if strings.length > 0
+      string = strings.shift()
+      if typeof(string) == 'function'
+        string()
+        @send envelope, strings...
+      else
+        @api.sendMessage string
+        @send envelope, strings...
 
   run: ->
-    @robot.logger.info "Run"
-    @connect()
-    @emit "connected"
-    user = new User 1001, name: 'Sample User'
-    message = new TextMessage user, 'Some Sample Message', 'MSG-001'
-    @robot.receive message
+    api = new TfsApi @robot
 
-  connect: ->
-    @api.connect()
+    api.on "connected", =>
+      @robot.logger.info "Connected!"
+      api.joinRoom()
+
+    api.on "message", (message) =>
+      user = new User 1001, name: 'Sample User'
+      message = new TextMessage user, message.content, 'MSG-001'
+      @robot.receive message
+
+    api.connect()
+
+    @api = api
 
 exports.use = (robot) ->
   new TfsTeamroomsAdapter robot
 
 
 robot = new Robot null, "tfs-teamrooms"
+robot.load Path.resolve ".", "scripts"
 
 robot.run()
